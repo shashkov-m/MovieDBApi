@@ -6,31 +6,60 @@
 //
 
 import XCTest
+import Combine
 @testable import MovieDBApi
 
 class MovieDBApiTests: XCTestCase {
-
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+  var movieService: MovieService!
+  var subscriptions = Set<AnyCancellable>()
+  override func setUpWithError() throws {
+    try super.setUpWithError()
+    movieService = MovieService.shared
+  }
+  
+  override func tearDownWithError() throws {
+    movieService = nil
+    try super.tearDownWithError()
+  }
+  
+  func testGetWeeklyTrendingMovies() {
+    //given
+    guard let url = movieService.createURL(for: .weeklyTrendingMovies) else {
+      XCTFail("cannot create an URL")
+      return
     }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+    let promice = expectation(description: "movies received")
+    var movies = [Movie]()
+    //when
+    let moviesPublisher = movieService.getMovies(with: url)
+    moviesPublisher.sink { response in
+      //then
+      movies = response.movies
+      promice.fulfill()
     }
-
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
+    .store(in: &subscriptions)
+    wait(for: [promice], timeout: 5)
+    XCTAssertGreaterThan(movies.count, 0)
+  }
+  
+  func testGetQueryMovies() {
+    //given
+    let query = "The lord of the rings"
+    guard let url = movieService.createURL(for: .searchMovie, query: query) else {
+      XCTFail("cannot create an URL")
+      return
     }
-
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-        }
+    let promice = expectation(description: "movies received")
+    var movies = [Movie]()
+    //when
+    let moviesPublisher = movieService.getMovies(with: url)
+    moviesPublisher.sink { response in
+      //then
+      movies = response.movies
+      promice.fulfill()
     }
-
+    .store(in: &subscriptions)
+    wait(for: [promice], timeout: 5)
+    XCTAssertGreaterThan(movies.count, 0)
+  }
 }
